@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout="@layout/preference_item"
+    android:title="title_activity_setting">
+
+    <PreferenceCategory
+        android:layout="@layout/preference_category_widget"
+        android:title="@string/setting_t1">
+        <CheckBoxPreference
+            android:key="setNotification"
+            android:layout="@layout/preference_item"
+            android:summary=""
+            android:title="@string/setting_noti"
+            android:defaultValue="true"/>
+
+        <CheckBoxPreference
+            android:key="setToast"
+            android:layout="@layout/preference_item"
+            android:summary=""
+            android:title="@string/setting_toast"
+            android:defaultValue="true"/>
+
+        <!--<ListPreference-->
+            <!--android:key="myListPreference"-->
+            <!--android:title="@string/list_title"-->
+            <!--android:entries="@array/listpreference"-->
+            <!--android:entryValues="@array/listpreferencevalues"-->
+            <!--android:dialogTitle="dialogTitle"-->
+            <!--android:defaultValue="50" />-->
+
+        <ListPreference
+            android:key="ListPreference"
+            android:title="@string/list_title"
+            android:entries="@array/list_pref"
+            android:entryValues="@array/listvalues_pref"
+            android:defaultValue="50"
+            ></ListPreference>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:layout="@layout/preference_category_widget"
+        android:title="@string/setting_t2">
+        <Preference
+            android:layout="@layout/preference_item"
+            android:summary="V 1.0"
+            android:title="@string/setting_ver" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

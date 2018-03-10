@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">C翻译</string>
+    <string name="action_his">历史</string>
+    <string name="action_setting">设置</string>
+    <string name="button_trans">翻译</string>
+    <string name="text1">译文：</string>
+    <string name="setting_t1">基本设置</string>
+    <string name="setting_t2">其他说明</string>
+    <string name="setting_ver">当前版本</string>
+    <string name="setting_noti">通知栏常驻</string>
+    <string name="setting_toast">显示吐司</string>
+    <string name="list_title">最大历史</string>
+
+    <string-array name="languages">
+        <item>auto</item>
+        <item>zh</item>
+        <item>en</item>
+        <item>yue</item>
+        <item>wyw</item>
+        <item>jp</item>
+        <item>kor</item>
+        <item>fra</item>
+        <item>spa</item>
+        <item>th</item>
+        <item>ara</item>
+        <item>ru</item>
+        <item>pt</item>
+        <item>de</item>
+        <item>it</item>
+        <item>el</item>
+        <item>nl</item>
+        <item>pl</item>
+        <item>bul</item>
+        <item>est</item>
+        <item>dan</item>
+        <item>fin</item>
+        <item>cs</item>
+        <item>rom</item>
+        <item>slo</item>
+        <item>swe</item>
+        <item>hu</item>
+        <item>cht</item>
+        <item>vie</item>
+    </string-array>
+
+    <string-array name="languages2">
+        <item>zh</item>
+        <item>en</item>
+        <item>yue</item>
+        <item>wyw</item>
+        <item>jp</item>
+        <item>kor</item>
+        <item>fra</item>
+        <item>spa</item>
+        <item>th</item>
+        <item>ara</item>
+        <item>ru</item>
+        <item>pt</item>
+        <item>de</item>
+        <item>it</item>
+        <item>el</item>
+        <item>nl</item>
+        <item>pl</item>
+        <item>bul</item>
+        <item>est</item>
+        <item>dan</item>
+        <item>fin</item>
+        <item>cs</item>
+        <item>rom</item>
+        <item>slo</item>
+        <item>swe</item>
+        <item>hu</item>
+        <item>cht</item>
+        <item>vie</item>
+    </string-array>
+
+    <string-array name="list_pref">
+        <item>20</item>
+        <item>50</item>
+        <item>100</item>
+    </string-array>
+
+    <string-array name="listvalues_pref">
+        <item>20</item>
+        <item>50</item>
+        <item>100</item>
+    </string-array>
+</resources>

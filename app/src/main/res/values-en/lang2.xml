@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="lang2">
+        <item>zh</item>
+        <item>en</item>
+        <item>yue</item>
+        <item>wyw</item>
+        <item>jp</item>
+        <item>kor</item>
+        <item>fra</item>
+        <item>spa</item>
+        <item>th</item>
+        <item>ara</item>
+        <item>ru</item>
+        <item>pt</item>
+        <item>de</item>
+        <item>it</item>
+        <item>el</item>
+        <item>nl</item>
+        <item>pl</item>
+        <item>bul</item>
+        <item>est</item>
+        <item>dan</item>
+        <item>fin</item>
+        <item>cs</item>
+        <item>rom</item>
+        <item>slo</item>
+        <item>swe</item>
+        <item>hu</item>
+        <item>cht</item>
+        <item>vie</item>
+    </string-array>
+</resources>
