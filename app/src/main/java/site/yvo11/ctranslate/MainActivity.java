@@ -1,13 +1,20 @@
 package site.yvo11.ctranslate;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Handler;
-import android.support.design.widget.TabLayout;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
-import android.support.v4.view.ViewPager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -36,8 +43,8 @@ public class MainActivity extends AppCompatActivity {
     EditText editText1;
     TextView textview2;
     Handler handler;
-    String str = "";
-    String src_t = "";
+    String src = "";
+    String dst = "";
     Spinner spinner1;
     Spinner spinner2;
     String selectLang1 = "";
@@ -110,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+
         tButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -120,8 +128,8 @@ public class MainActivity extends AppCompatActivity {
                 final String salt = String.valueOf(System.currentTimeMillis());
                 String sign;
                 String securityKey = "G4GgX0B8HtfBYV7q9N9n";
-                String src = appid + q + salt + securityKey; // 加密前的原文
-                sign = MD5.md5(src);
+                String str = appid + q + salt + securityKey; // 加密前的原文
+                sign = MD5.md5(str);
 
                 try {
                     q = URLEncoder.encode(q, "utf-8");
@@ -136,36 +144,36 @@ public class MainActivity extends AppCompatActivity {
                 client.newCall(request).enqueue(new Callback() {
                     @Override
                     public void onResponse(Response response) throws IOException {
-                        str = response.body().string();
-                        Log.d("aa", str);
+                        String raw = response.body().string();
+                        Log.d("aa", raw);
                         try {
                             Gson g = new Gson();
-                            baiduTranslate bdt = g.fromJson(str, baiduTranslate.class);
+                            baiduTranslate bdt = g.fromJson(raw, baiduTranslate.class);
                             List<baiduTranslate.trans_result> transResultList = bdt.trans_result;
-                            str = "";
-                            src_t = "";
+                            src = "";
+                            dst = "";
                             for (int i = 0; i < transResultList.size(); i++) {
-                                str = str + transResultList.get(i).dst;
-                                if(i != transResultList.size()-1){
-                                    str = str + '\n';
+                                dst = dst + transResultList.get(i).dst;
+                                if (i != transResultList.size() - 1) {
+                                    dst = dst + '\n';
                                 }
-                                src_t = src_t + transResultList.get(i).src + '\n';
+                                src = src + transResultList.get(i).src + '\n';
                             }
 
                         } catch (Exception e) {
-                            Log.d("code", str);
-                            str = "";
-                            src_t = "";
+                            Log.d("code", dst);
+                            dst = "";
+                            src = "";
                         }
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
                                 //更新界面
-                                textview2.setText(str);
+                                textview2.setText(dst);
                             }
                         });
 
-                        if(str != "" && src_t != ""){
+                        if(src != "" && dst != ""){
                             SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
                             int sum = 0;
                             if(sharedPreferences.contains("sum")){
@@ -173,7 +181,8 @@ public class MainActivity extends AppCompatActivity {
                             }
                             editor = getSharedPreferences("data", MODE_PRIVATE).edit();
                             String key = (sum+1)+"";
-                            editor.putString(key, "src:"+'\n'+src_t +"dst:"+'\n'+ str);
+                            editor.putString(key+"src",src);
+                            editor.putString(key+"dst",dst);
                             editor.putInt("sum", sum+1);
                             editor.apply();
                         }
@@ -186,12 +195,12 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         });
+
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopService(startService);
 //        杀掉进程
 //        android.os.Process.killProcess(android.os.Process.myPid());
 //        System.exit(0);
@@ -211,6 +220,8 @@ public class MainActivity extends AppCompatActivity {
         }else if(item.getItemId() == R.id.action_setting){
             Intent intent = new Intent(MainActivity.this, SettingActivity.class);
             startActivity(intent);
+        }else if(item.getItemId() == R.id.action_exit){
+            stopService(startService);
         }
         return super.onOptionsItemSelected(item);
     }
@@ -219,4 +230,5 @@ public class MainActivity extends AppCompatActivity {
     public static MainActivity getInstance() {
         return instance;
     }
+
 }

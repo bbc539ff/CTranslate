@@ -3,6 +3,7 @@
     <string name="app_name">CTranslate</string>
     <string name="action_his">History</string>
     <string name="action_setting">Setting</string>
+    <string name="action_exit">Exit</string>
     <string name="button_trans">Translate</string>
     <string name="text1">Translation:</string>
     <string name="setting_t1">Basic Setting</string>

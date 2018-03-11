@@ -5,10 +5,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.BitmapFactory;
 import android.os.Binder;
@@ -31,7 +33,9 @@ import com.squareup.okhttp.Response;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import static android.app.NotificationChannel.DEFAULT_CHANNEL_ID;
 
@@ -53,16 +57,65 @@ public class ClipboardService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction("site.yvo11.ctranslate.cancel");
+        cancelReceiver = new CancelReceiver();
+        registerReceiver(cancelReceiver, intentFilter);
         exit = false;
     }
 
     @Override
     public void onDestroy() {
+        unregisterReceiver(cancelReceiver);
         exit = true;
     }
-
+    CancelReceiver cancelReceiver;
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
+        if(setNotification == true){
+            if(Build.VERSION.SDK_INT >= 26) {
+                NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
+                NotificationChannel notificationChannel = new NotificationChannel("default", "Channel name", NotificationManager.IMPORTANCE_DEFAULT);
+                notificationChannel.setDescription("Channel description");
+                notificationManager.createNotificationChannel(notificationChannel);
+
+                Intent intentM = new Intent(getApplicationContext(), MainActivity.class);
+                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intentM, 0);
+
+                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
+                        .setContentTitle(selectLang1+" -> "+selectLang2)
+                        .setSmallIcon(R.drawable.cc_noti)
+                        .setContentIntent(pi)
+                        .setStyle(new NotificationCompat.BigTextStyle()
+                                .bigText("None..."))
+                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                cPi)
+                        .build();
+                startForeground(1, notification);
+
+            }else{
+                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                Intent intentM = new Intent(getApplicationContext(), MainActivity.class);
+                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intentM, 0);
+                Notification notification = new NotificationCompat.Builder(getApplicationContext())
+                        .setContentTitle(selectLang1+" -> "+selectLang2)
+                        .setSmallIcon(R.drawable.cc_noti)
+                        .setContentIntent(pi)
+                        .setStyle(new NotificationCompat.BigTextStyle()
+                                .bigText("None..."))
+                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                cPi)
+                        .build();
+                startForeground(1, notification);
+            }
+        }
+
 
         new Thread(new Runnable() {
             @Override
@@ -81,17 +134,14 @@ public class ClipboardService extends Service {
                         while(!exit){
                             if(clipboardManager.hasPrimaryClip()){
                                 ClipData clipData = clipboardManager.getPrimaryClip();
-                                try{
+                                if(clipData != null) {
                                     text = clipData.getItemAt(0).getText().toString();
-                                    if(!temp.equals(text)) {
+                                    if (!temp.equals(text)) {
                                         temp = text;
                                         Log.d(temp, text);
                                         trans(text);
                                     }
-                                }catch (Exception e){
-                                    e.printStackTrace();
                                 }
-
                             }
                         }
                     }
@@ -103,9 +153,13 @@ public class ClipboardService extends Service {
         return super.onStartCommand(intent, flags, startId);
     }
 
+    private static ClipboardService instance;
+    public static ClipboardService getInstance() {
+        return instance;
+    }
 
-    String str = "";
-    String src_t = "";
+    String dst = "";
+    String src = "";
     String selectLang1 = "auto";
     String selectLang2 = "zh";
     SharedPreferences.Editor editor;
@@ -143,8 +197,8 @@ public class ClipboardService extends Service {
         final String salt = String.valueOf(System.currentTimeMillis());
         String sign;
         String securityKey = "G4GgX0B8HtfBYV7q9N9n";
-        String src = appid + q + salt + securityKey; // 加密前的原文
-        sign = MD5.md5(src);
+        String str = appid + q + salt + securityKey; // 加密前的原文
+        sign = MD5.md5(str);
 
         try {
             q = URLEncoder.encode(q, "utf-8");
@@ -159,26 +213,26 @@ public class ClipboardService extends Service {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Response response) throws IOException {
-                str = response.body().string();
-                Log.d("aa", str);
+                String Raw = response.body().string();
+                Log.d("aa", Raw);
                 try {
                     Gson g = new Gson();
-                    baiduTranslate bdt = g.fromJson(str, baiduTranslate.class);
+                    baiduTranslate bdt = g.fromJson(Raw, baiduTranslate.class);
                     List<baiduTranslate.trans_result> transResultList = bdt.trans_result;
-                    str = "";
-                    src_t = "";
+                    dst = "";
+                    src = "";
                     for (int i = 0; i < transResultList.size(); i++) {
-                        str = str + transResultList.get(i).dst;
+                        dst = dst + transResultList.get(i).dst;
                         if(i != transResultList.size()-1){
-                            str = str + '\n';
+                            dst = dst + '\n';
                         }
-                        src_t = src_t + transResultList.get(i).src + '\n';
+                        src = src + transResultList.get(i).src + '\n';
                     }
 
                 } catch (Exception e) {
-                    Log.d("code", str);
-                    str = "";
-                    src_t = "";
+                    Log.d("code", src);
+                    src = "";
+                    dst = "";
                 }
 
                 new Thread(){
@@ -187,7 +241,7 @@ public class ClipboardService extends Service {
                             @Override
                             public void run() {
                                 if(setToast == true){
-                                    Toast.makeText(getApplicationContext(), str, Toast.LENGTH_LONG).show();
+                                    Toast.makeText(getApplicationContext(), dst, Toast.LENGTH_LONG).show();
                                 }
                                 if(setNotification == true){
                                     if(Build.VERSION.SDK_INT >= 26) {
@@ -199,24 +253,36 @@ public class ClipboardService extends Service {
                                         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                                         PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
 
+                                        Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                                        PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
                                         Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
-                                                .setContentTitle(selectLang1+" -> "+selectLang2)
-                                                .setSmallIcon(R.mipmap.ic_launcher)
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                                                .setContentTitle(src)
+                                                .setSmallIcon(R.drawable.cc_noti)
                                                 .setContentIntent(pi)
                                                 .setStyle(new NotificationCompat.BigTextStyle()
-                                                        .bigText(str))
+                                                        .bigText("-> "+dst))
+                                                .addAction(R.mipmap.ic_launcher, "Cancel",
+                                                        cPi)
                                                 .build();
                                         startForeground(1, notification);
 
                                     }else{
+                                        Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                                        PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
                                         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                                         PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
                                         Notification notification = new NotificationCompat.Builder(getApplicationContext())
-                                                .setContentTitle(selectLang1+" -> "+selectLang2)
-                                                .setSmallIcon(R.mipmap.ic_launcher)
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                                                .setContentTitle(src)
+                                                .setSmallIcon(R.drawable.cc_noti)
                                                 .setContentIntent(pi)
                                                 .setStyle(new NotificationCompat.BigTextStyle()
-                                                        .bigText(str))
+                                                        .bigText("-> "+dst))
+                                                .addAction(R.mipmap.ic_launcher, "Cancel",
+                                                 cPi)
                                                 .build();
                                         startForeground(1, notification);
                                     }
@@ -230,7 +296,7 @@ public class ClipboardService extends Service {
 
 
 
-                if(str != "" && src_t != ""){
+                if(src != "" && dst != ""){
                     SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
                     int sum = 0;
                     if(sharedPreferences.contains("sum")){
@@ -238,7 +304,8 @@ public class ClipboardService extends Service {
                     }
                     editor = getSharedPreferences("data", MODE_PRIVATE).edit();
                     String key = (sum+1)+"";
-                    editor.putString(key, "src:"+'\n'+src_t +"dst:"+'\n'+ str);
+                    editor.putString(key+"src",src);
+                    editor.putString(key+"dst",dst);
                     editor.putInt("sum", sum+1);
                     editor.apply();
                 }
@@ -250,5 +317,13 @@ public class ClipboardService extends Service {
 
             }
         });
+    }
+    class CancelReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            stopService(new Intent(getApplicationContext(), ClipboardService.class));
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(0);
+        }
     }
 }

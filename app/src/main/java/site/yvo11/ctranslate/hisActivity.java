@@ -18,7 +18,7 @@ import java.util.List;
  */
 
 public class hisActivity extends AppCompatActivity {
-    private List<String> dataList = new ArrayList<String>();
+    private List<Result> dataList = new ArrayList<Result>();
     ClipboardAdapter recAdapter;
     int MAX = 10;
 
@@ -30,8 +30,6 @@ public class hisActivity extends AppCompatActivity {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         MAX = Integer.valueOf(prefs.getString("ListPreference", "50")).intValue();
 
-        Log.d("aaaaaa",MAX+"");
-
         RecyclerView recyclerView = findViewById(R.id.his_recyclerView);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
@@ -41,13 +39,16 @@ public class hisActivity extends AppCompatActivity {
         if(sharedPreferences.contains("sum")){
             sum = sharedPreferences.getInt("sum", 0);
         }
-        int start = sum - MAX + 1;
-        if(start <= 0){
-            start = 1;
+
+        int top = sum - MAX + 1;
+        if(top <= 0){
+            top = 1;
         }
-        for(int i = sum;i>=start;i--){
-            String str = sharedPreferences.getString(i+"","");
-            dataList.add(str);
+        for(int i = sum;i>=top;i--){
+            String src = sharedPreferences.getString(i+""+"src","");
+            String dst = sharedPreferences.getString(i+""+"dst","");
+
+            dataList.add(new Result(src, dst));
         }
 
         recAdapter = new ClipboardAdapter(dataList);

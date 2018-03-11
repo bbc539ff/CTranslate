@@ -1,5 +1,6 @@
 package site.yvo11.ctranslate;
 
+import android.graphics.Typeface;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,17 +14,20 @@ import java.util.List;
  */
 
 public class ClipboardAdapter extends RecyclerView.Adapter<ClipboardAdapter.ViewHolder> {
-    private List<String> mStringList;
+    private List<Result> mResultList;
     static class ViewHolder extends RecyclerView.ViewHolder{
-        TextView textView;
+        TextView textView1;
+        TextView textView2;
         public ViewHolder(View view) {
             super(view);
-            textView = view.findViewById(R.id.r_textview);
+            textView1 = view.findViewById(R.id.r_textview1);
+            textView2 = view.findViewById(R.id.r_textview2);
+            textView1.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD));
         }
     }
 
-    public ClipboardAdapter(List<String> stringList){
-        mStringList = stringList;
+    public ClipboardAdapter(List<Result> mResultList){
+        this.mResultList = mResultList;
     }
 
     @Override
@@ -36,22 +40,24 @@ public class ClipboardAdapter extends RecyclerView.Adapter<ClipboardAdapter.View
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        String data = mStringList.get(position);
-        holder.textView.setText(data);
+        String src = mResultList.get(position).getSrc();
+        String dst = mResultList.get(position).getDst();
+        holder.textView1.setText(src);
+        holder.textView2.setText(dst);
     }
 
     @Override
     public int getItemCount() {
-        return mStringList.size();
+        return mResultList.size();
     }
 
     public void remove(int position) {
-        mStringList.remove(position);
+        mResultList.remove(position);
         notifyItemRemoved(position);
     }
 
-    public void addData(String text, int position) {
-        mStringList.add(position, text);
+    public void addData(Result result, int position) {
+        mResultList.add(position, result);
         notifyItemInserted(position);
     }
 

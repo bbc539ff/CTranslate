@@ -3,6 +3,7 @@
     <string name="app_name">C翻译</string>
     <string name="action_his">历史</string>
     <string name="action_setting">设置</string>
+    <string name="action_exit">退出</string>
     <string name="button_trans">翻译</string>
     <string name="text1">译文：</string>
     <string name="setting_t1">基本设置</string>
