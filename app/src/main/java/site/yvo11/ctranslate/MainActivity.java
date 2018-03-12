@@ -222,6 +222,7 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         }else if(item.getItemId() == R.id.action_exit){
             stopService(startService);
+            finish();
         }
         return super.onOptionsItemSelected(item);
     }
