@@ -22,21 +22,20 @@
             android:title="@string/setting_toast"
             android:defaultValue="true"/>
 
-        <!--<ListPreference-->
-            <!--android:key="myListPreference"-->
-            <!--android:title="@string/list_title"-->
-            <!--android:entries="@array/listpreference"-->
-            <!--android:entryValues="@array/listpreferencevalues"-->
-            <!--android:dialogTitle="dialogTitle"-->
-            <!--android:defaultValue="50" />-->
-
         <ListPreference
             android:key="ListPreference"
             android:title="@string/list_title"
             android:entries="@array/list_pref"
             android:entryValues="@array/listvalues_pref"
             android:defaultValue="50"
-            ></ListPreference>
+            />
+
+        <CheckBoxPreference
+            android:key="setShanbay"
+            android:layout="@layout/preference_item"
+            android:summary="@string/setting_shanbay2"
+            android:title="@string/setting_shanbay1"
+            android:defaultValue="false"/>
 
     </PreferenceCategory>
 

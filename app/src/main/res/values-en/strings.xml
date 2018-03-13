@@ -12,6 +12,8 @@
     <string name="setting_noti">Stay in Notifition</string>
     <string name="setting_toast">Show Toast</string>
     <string name="list_title">Max History</string>
+    <string name="setting_shanbay1">Shanbay </string>
+    <string name="setting_shanbay2">Only English</string>
 
     <string-array name="languages">
         <item>auto</item>

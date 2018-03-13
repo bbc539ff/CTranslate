@@ -12,13 +12,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.graphics.BitmapFactory;
-import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.provider.Settings;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -33,12 +31,9 @@ import com.squareup.okhttp.Response;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
-import static android.app.NotificationChannel.DEFAULT_CHANNEL_ID;
-
+import site.yvo11.ctranslate.Shanbay.Shanbay;
 
 /**
  * Created by yvo11 on 2018/2/22.
@@ -116,40 +111,23 @@ public class ClipboardService extends Service {
             }
         }
 
-
-        new Thread(new Runnable() {
+        final ClipboardManager clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        clipboardManager.addPrimaryClipChangedListener(new ClipboardManager.OnPrimaryClipChangedListener() {
+            private long previousTime = 0;
             @Override
-            public void run() {
-                Looper.prepare();
-                new Handler().post(new Runnable() {
-                    @Override
-                    public void run() {
-                        ClipboardManager clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-                        String temp = "";
-                        if(clipboardManager.hasPrimaryClip()){
-                            ClipData clipData = clipboardManager.getPrimaryClip();
-                            temp = clipData.getItemAt(0).getText().toString();
-                        }
-
-                        while(!exit){
-                            if(clipboardManager.hasPrimaryClip()){
-                                ClipData clipData = clipboardManager.getPrimaryClip();
-                                if(clipData != null) {
-                                    text = clipData.getItemAt(0).getText().toString();
-                                    if (!temp.equals(text)) {
-                                        temp = text;
-                                        Log.d(temp, text);
-                                        trans(text);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-                Looper.loop();
-
+            public void onPrimaryClipChanged() {
+                long now = System.currentTimeMillis();
+                if(now-previousTime < 200){
+                    previousTime = now;
+                    return;
+                }
+                previousTime = now;
+                ClipData clipData = clipboardManager.getPrimaryClip();
+                String text = clipData.getItemAt(0).getText().toString();
+                trans(text);
             }
-        }).start();
+        });
+
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -170,6 +148,8 @@ public class ClipboardService extends Service {
     Boolean setToast = true; // default
     Boolean setNotification = true; // default
 
+    String word;
+
 
     void trans(final String text){
         editor_s = getSharedPreferences("setting", MODE_PRIVATE).edit();
@@ -189,134 +169,270 @@ public class ClipboardService extends Service {
         setToast = sharedPreferences1.getBoolean("setToast", true);
         setNotification = sharedPreferences1.getBoolean("setNotification", true);
 
-
-        String q = text;
-        String from = selectLang1;
-        String to = selectLang2;
-        String appid = "20180212000122458";
-        final String salt = String.valueOf(System.currentTimeMillis());
-        String sign;
-        String securityKey = "G4GgX0B8HtfBYV7q9N9n";
-        String str = appid + q + salt + securityKey; // 加密前的原文
-        sign = MD5.md5(str);
-
-        try {
-            q = URLEncoder.encode(q, "utf-8");
-        } catch (UnsupportedEncodingException e) {
-
-        }
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .get()
-                .url("http://api.fanyi.baidu.com/api/trans/vip/translate?" + "q=" + q + "&from=" + from + "&to=" + to + "&appid=" + appid + "&salt=" + salt + "&sign=" + sign)
-                .build();
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onResponse(Response response) throws IOException {
-                String Raw = response.body().string();
-                Log.d("aa", Raw);
-                try {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean setShanbay = Boolean.valueOf(prefs.getBoolean("setShanbay", false)).booleanValue();
+        if(setShanbay == true){
+            word = text;
+            OkHttpClient client = new OkHttpClient();
+            Request request = new Request.Builder()
+                    .get()
+                    .url("https://api.shanbay.com/bdc/search/?word="+word)
+                    .build();
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onResponse(Response response) throws IOException {
+                    String enDefinitions;
+                    String defn;
+                    String uk;
+                    String us;
+                    String raw = response.body().string();
                     Gson g = new Gson();
-                    baiduTranslate bdt = g.fromJson(Raw, baiduTranslate.class);
-                    List<baiduTranslate.trans_result> transResultList = bdt.trans_result;
-                    dst = "";
-                    src = "";
-                    for (int i = 0; i < transResultList.size(); i++) {
-                        dst = dst + transResultList.get(i).dst;
-                        if(i != transResultList.size()-1){
-                            dst = dst + '\n';
-                        }
-                        src = src + transResultList.get(i).src + '\n';
-                    }
+                    Shanbay shanbayresult = g.fromJson(raw, Shanbay.class);
+                    int statusCode = shanbayresult.getStatusCode();
+                    if(statusCode == 0){
+                        List<String> adj = shanbayresult.getData().getEnDefinitions().getAdj();
+                        List<String> adv = shanbayresult.getData().getEnDefinitions().getAdv();
+                        List<String> art = shanbayresult.getData().getEnDefinitions().getArt();
+                        List<String> conj = shanbayresult.getData().getEnDefinitions().getConj();
+                        List<String> interj = shanbayresult.getData().getEnDefinitions().getInterj();
+                        List<String> n = shanbayresult.getData().getEnDefinitions().getN();
+                        List<String> num = shanbayresult.getData().getEnDefinitions().getNum();
+                        List<String> prep = shanbayresult.getData().getEnDefinitions().getPrep();
+                        List<String> pron = shanbayresult.getData().getEnDefinitions().getPron();
+                        List<String> v = shanbayresult.getData().getEnDefinitions().getV();
 
-                } catch (Exception e) {
-                    Log.d("code", src);
-                    src = "";
-                    dst = "";
-                }
-
-                new Thread(){
-                    public void run() {
-                        mHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if(setToast == true){
-                                    Toast.makeText(getApplicationContext(), dst, Toast.LENGTH_LONG).show();
-                                }
-                                if(setNotification == true){
-                                    if(Build.VERSION.SDK_INT >= 26) {
-                                        NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
-                                        NotificationChannel notificationChannel = new NotificationChannel("default", "Channel name", NotificationManager.IMPORTANCE_DEFAULT);
-                                        notificationChannel.setDescription("Channel description");
-                                        notificationManager.createNotificationChannel(notificationChannel);
-
-                                        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                                        PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
-
-                                        Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
-                                        PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
-
-                                        Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
-//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
-                                                .setContentTitle(src)
-                                                .setSmallIcon(R.drawable.cc_noti)
-                                                .setContentIntent(pi)
-                                                .setStyle(new NotificationCompat.BigTextStyle()
-                                                        .bigText("-> "+dst))
-                                                .addAction(R.mipmap.ic_launcher, "Cancel",
-                                                        cPi)
-                                                .build();
-                                        startForeground(1, notification);
-
-                                    }else{
-                                        Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
-                                        PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
-
-                                        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                                        PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
-                                        Notification notification = new NotificationCompat.Builder(getApplicationContext())
-//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
-                                                .setContentTitle(src)
-                                                .setSmallIcon(R.drawable.cc_noti)
-                                                .setContentIntent(pi)
-                                                .setStyle(new NotificationCompat.BigTextStyle()
-                                                        .bigText("-> "+dst))
-                                                .addAction(R.mipmap.ic_launcher, "Cancel",
-                                                 cPi)
-                                                .build();
-                                        startForeground(1, notification);
-                                    }
-
-                                }
-
+                        String str = "";
+                        if(adj != null){
+                            str = str + "adj. ";
+                            for(String tmp:adj){
+                                str = str + tmp + '\n';
                             }
-                        });
+                        }
+                        if(adv != null){
+                            str = str + "adv. ";
+                            for(String tmp:adv){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(art != null){
+                            str = str + "art. ";
+                            for(String tmp:art){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(conj != null){
+                            str = str + "conj. ";
+                            for(String tmp:conj){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(interj != null){
+                            str = str + "interj. ";
+                            for(String tmp:interj){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(n != null){
+                            str = str + "n. ";
+                            for(String tmp:n){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(num != null){
+                            str = str + "num. ";
+                            for(String tmp:num){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(prep != null){
+                            str = str + "prep. ";
+                            for(String tmp:prep){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(pron != null){
+                            str = str + "pron. ";
+                            for(String tmp:pron){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        if(v != null){
+                            str = str + "v. ";
+                            for(String tmp:v){
+                                str = str + tmp + '\n';
+                            }
+                        }
+                        Log.d("enDefinitions", str);
+                        enDefinitions = str;
+
+                        defn = shanbayresult.getData().getCnDefinition().getDefn();
+                        Log.d("defn", defn);
+
+                        uk = shanbayresult.getData().getPronunciations().getUk();
+                        us = shanbayresult.getData().getPronunciations().getUs();
+                        Log.d("uk", uk);
+                        Log.d("us", us);
+                        dst = "UK: " + "[" + uk + "]" +" US: " + "[" + us + "]" + '\n'
+                                + enDefinitions + '\n' + defn;
+                        src = word;
+                    }else{
+                        src = statusCode + "";
+                        dst = shanbayresult.getMsg();
                     }
-                }.start();
+                    runNotification();
 
-
-
-                if(src != "" && dst != ""){
-                    SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
-                    int sum = 0;
-                    if(sharedPreferences.contains("sum")){
-                        sum = sharedPreferences.getInt("sum", 0);
+                    if(src != "" && dst != "" && dst != statusCode + ""){
+                        SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
+                        int sum = 0;
+                        if(sharedPreferences.contains("sum")){
+                            sum = sharedPreferences.getInt("sum", 0);
+                        }
+                        editor = getSharedPreferences("data", MODE_PRIVATE).edit();
+                        String key = (sum+1)+"";
+                        editor.putString(key+"src",src);
+                        editor.putString(key+"dst",dst);
+                        editor.putInt("sum", sum+1);
+                        editor.apply();
                     }
-                    editor = getSharedPreferences("data", MODE_PRIVATE).edit();
-                    String key = (sum+1)+"";
-                    editor.putString(key+"src",src);
-                    editor.putString(key+"dst",dst);
-                    editor.putInt("sum", sum+1);
-                    editor.apply();
                 }
 
-            }
+                @Override
+                public void onFailure(Request request, IOException e) {
 
-            @Override
-            public void onFailure(Request request, IOException e) {
+                }
+            });
+
+        } else{
+            String q = text;
+            String from = selectLang1;
+            String to = selectLang2;
+            String appid = "20180212000122458";
+            final String salt = String.valueOf(System.currentTimeMillis());
+            String sign;
+            String securityKey = "G4GgX0B8HtfBYV7q9N9n";
+            String str = appid + q + salt + securityKey; // 加密前的原文
+            sign = MD5.md5(str);
+
+            try {
+                q = URLEncoder.encode(q, "utf-8");
+            } catch (UnsupportedEncodingException e) {
 
             }
-        });
+            OkHttpClient client = new OkHttpClient();
+            Request request = new Request.Builder()
+                    .get()
+                    .url("http://api.fanyi.baidu.com/api/trans/vip/translate?" + "q=" + q + "&from=" + from + "&to=" + to + "&appid=" + appid + "&salt=" + salt + "&sign=" + sign)
+                    .build();
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onResponse(Response response) throws IOException {
+                    String Raw = response.body().string();
+                    Log.d("aa", Raw);
+                    try {
+                        Gson g = new Gson();
+                        baiduTranslate bdt = g.fromJson(Raw, baiduTranslate.class);
+                        List<baiduTranslate.trans_result> transResultList = bdt.trans_result;
+                        dst = "";
+                        src = "";
+                        for (int i = 0; i < transResultList.size(); i++) {
+                            dst = dst + transResultList.get(i).dst;
+                            if(i != transResultList.size()-1){
+                                dst = dst + '\n';
+                            }
+                            src = src + transResultList.get(i).src + '\n';
+                        }
+
+                    } catch (Exception e) {
+                        Log.d("code", src);
+                        src = "";
+                        dst = "";
+                    }
+
+                    runNotification();
+
+
+                    if(src != "" && dst != ""){
+                        SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
+                        int sum = 0;
+                        if(sharedPreferences.contains("sum")){
+                            sum = sharedPreferences.getInt("sum", 0);
+                        }
+                        editor = getSharedPreferences("data", MODE_PRIVATE).edit();
+                        String key = (sum+1)+"";
+                        editor.putString(key+"src",src);
+                        editor.putString(key+"dst",dst);
+                        editor.putInt("sum", sum+1);
+                        editor.apply();
+                    }
+
+                }
+
+                @Override
+                public void onFailure(Request request, IOException e) {
+
+                }
+            });
+        }
+    }
+    void runNotification(){
+        new Thread(){
+            public void run() {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(setToast == true){
+                            Toast.makeText(getApplicationContext(), dst, Toast.LENGTH_LONG).show();
+                        }
+                        if(setNotification == true){
+                            if(Build.VERSION.SDK_INT >= 26) {
+                                NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
+                                NotificationChannel notificationChannel = new NotificationChannel("default", "Channel name", NotificationManager.IMPORTANCE_DEFAULT);
+                                notificationChannel.setDescription("Channel description");
+                                notificationManager.createNotificationChannel(notificationChannel);
+
+                                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+
+                                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                                Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                                        .setContentTitle(src)
+                                        .setSmallIcon(R.drawable.cc_noti)
+                                        .setContentIntent(pi)
+                                        .setStyle(new NotificationCompat.BigTextStyle()
+                                                .bigText("-> "+dst))
+                                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                                cPi)
+                                        .build();
+                                startForeground(1, notification);
+
+                            }else{
+                                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+                                Notification notification = new NotificationCompat.Builder(getApplicationContext())
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                                        .setContentTitle(src)
+                                        .setSmallIcon(R.drawable.cc_noti)
+                                        .setContentIntent(pi)
+                                        .setStyle(new NotificationCompat.BigTextStyle()
+                                                .bigText("-> "+dst))
+                                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                                cPi)
+                                        .build();
+                                startForeground(1, notification);
+                            }
+
+                        }
+
+                    }
+                });
+            }
+        }.start();
     }
     class CancelReceiver extends BroadcastReceiver {
         @Override

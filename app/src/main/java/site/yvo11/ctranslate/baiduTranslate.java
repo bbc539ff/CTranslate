@@ -8,8 +8,6 @@ import java.util.List;
 
 public class baiduTranslate {
 
-    public String from;
-    public String to;
     public List<trans_result> trans_result = null;
     public class trans_result {
         public String src;
