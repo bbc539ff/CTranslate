@@ -51,5 +51,6 @@ public class hisActivity extends AppCompatActivity {
 
         recAdapter = new ClipboardAdapter(dataList);
         recyclerView.setAdapter(recAdapter);
+
     }
 }

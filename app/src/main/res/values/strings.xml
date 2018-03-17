@@ -10,10 +10,12 @@
     <string name="setting_t2">其他说明</string>
     <string name="setting_ver">当前版本</string>
     <string name="setting_noti">通知栏常驻</string>
+    <string name="setting_start">启动时不显示主页面</string>
     <string name="setting_toast">显示吐司</string>
-    <string name="setting_shanbay1">使用扇贝源</string>
-    <string name="setting_shanbay2">仅支持英文单词查询</string>
     <string name="list_title">最大历史</string>
+    <string name="setting_hisclear">清空历史</string>
+    <string name="source_list_title">选择源</string>
+
 
     <string-array name="languages">
         <item>auto</item>
@@ -88,5 +90,15 @@
         <item>20</item>
         <item>50</item>
         <item>100</item>
+    </string-array>
+
+    <string-array name="source_list_pref">
+        <item>百度翻译</item>
+        <item>扇贝查词</item>
+    </string-array>
+
+    <string-array name="source_listvalues_pref">
+        <item>1</item>
+        <item>2</item>
     </string-array>
 </resources>

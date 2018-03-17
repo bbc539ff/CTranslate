@@ -46,14 +46,32 @@ public class MainActivity extends AppCompatActivity {
     Button tButton;
     SharedPreferences.Editor editor;
     SharedPreferences.Editor editor1;
-    boolean setShanbay = false;
+    int setSource = 1;
     String word;
+    boolean isNeedTransparent;
+
+    @Override
+    public void setTheme(int resid) {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        isNeedTransparent = sharedPreferences.getBoolean("setStart", false);
+
+        Intent intent = getIntent();
+        isNeedTransparent = intent.getBooleanExtra("setStart", isNeedTransparent);
+
+
+        if(isNeedTransparent){
+            super.setTheme(R.style.AppTheme_NoDisplay);
+        }else{
+            super.setTheme(R.style.AppTheme_NoActionBar);
+        }
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         final Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -113,12 +131,18 @@ public class MainActivity extends AppCompatActivity {
 
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        setShanbay = Boolean.valueOf(prefs.getBoolean("setShanbay", false)).booleanValue();
-
+        setSource = Integer.valueOf(prefs.getString("sourceListPreference", "1")).intValue();
+        if(setSource == 2){
+            spinner1.setVisibility(View.INVISIBLE);
+            spinner2.setVisibility(View.INVISIBLE);
+        }else{
+            spinner1.setVisibility(View.VISIBLE);
+            spinner2.setVisibility(View.VISIBLE);
+        }
         tButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(setShanbay == true){
+                if(setSource == 2){
                     word = editText1.getText().toString();
                     OkHttpClient client = new OkHttpClient();
                     Request request = new Request.Builder()
@@ -220,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
                                 Log.d("uk", uk);
                                 Log.d("us", us);
                                 dst = "UK: " + "[" + uk + "]" +" US: " + "[" + us + "]" + '\n'
-                                        + enDefinitions + '\n' + defn;
+                                        + defn + '\n' + enDefinitions;
                                 src = word;
                             }else{
                                 src = statusCode + "";
@@ -333,19 +357,24 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+
     @Override
     protected void onResume() {
         super.onResume();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        setShanbay = Boolean.valueOf(prefs.getBoolean("setShanbay", false)).booleanValue();
-
-        if(setShanbay == true){
+        setSource = Integer.valueOf(prefs.getString("sourceListPreference", "1")).intValue();
+        if(setSource == 2){
             spinner1.setVisibility(View.INVISIBLE);
             spinner2.setVisibility(View.INVISIBLE);
         }else{
             spinner1.setVisibility(View.VISIBLE);
             spinner2.setVisibility(View.VISIBLE);
         }
+        if(isNeedTransparent){
+            finish();
+        }
+
     }
 
     @Override

@@ -13,12 +13,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.RemoteInput;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -35,13 +37,28 @@ import java.util.List;
 
 import site.yvo11.ctranslate.Shanbay.Shanbay;
 
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
+
 /**
  * Created by yvo11 on 2018/2/22.
  */
 
 public class ClipboardService extends Service {
-    String text;
-    Boolean exit = false;
+    CancelReceiver cancelReceiver;
+    NextReceiver nextReceiver;
+    StartReceiver startReceiver;
+    ReplyReceiver replyReceiver;
+    boolean reciteMode = false;
+    private static final String KEY_TEXT_REPLY = "key_text_reply";
+
+    private CharSequence getMessageText(Intent intent) {
+        Bundle remoteInput = RemoteInput.getResultsFromIntent(intent);
+        if (remoteInput != null) {
+            return remoteInput.getCharSequence(KEY_TEXT_REPLY);
+        }
+        return null;
+    }
+
 
     @Nullable
     @Override
@@ -56,59 +73,123 @@ public class ClipboardService extends Service {
         intentFilter.addAction("site.yvo11.ctranslate.cancel");
         cancelReceiver = new CancelReceiver();
         registerReceiver(cancelReceiver, intentFilter);
-        exit = false;
+
+        IntentFilter intentFilter2 = new IntentFilter();
+        intentFilter2.addAction("site.yvo11.ctranslate.next");
+        nextReceiver = new NextReceiver();
+        registerReceiver(nextReceiver, intentFilter2);
+
+        IntentFilter intentFilter3 = new IntentFilter();
+        intentFilter3.addAction("site.yvo11.ctranslate.start");
+        startReceiver = new StartReceiver();
+        registerReceiver(startReceiver, intentFilter3);
+
+        IntentFilter intentFilter4 = new IntentFilter();
+        intentFilter4.addAction("site.yvo11.ctranslate.reply");
+        replyReceiver = new ReplyReceiver();
+        registerReceiver(replyReceiver, intentFilter4);
+
+        SharedPreferences sharedPreferences = getSharedPreferences("setting", MODE_PRIVATE);
+        reciteMode = sharedPreferences.getBoolean("reciteMode", false);
     }
 
     @Override
     public void onDestroy() {
         unregisterReceiver(cancelReceiver);
-        exit = true;
+        unregisterReceiver(nextReceiver);
+        unregisterReceiver(startReceiver);
+        unregisterReceiver(replyReceiver);
     }
-    CancelReceiver cancelReceiver;
+
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public int onStartCommand(Intent intentt, int flags, int startId) {
 
-        if(setNotification == true){
-            if(Build.VERSION.SDK_INT >= 26) {
-                NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
-                NotificationChannel notificationChannel = new NotificationChannel("default", "Channel name", NotificationManager.IMPORTANCE_DEFAULT);
-                notificationChannel.setDescription("Channel description");
-                notificationManager.createNotificationChannel(notificationChannel);
-
-                Intent intentM = new Intent(getApplicationContext(), MainActivity.class);
-                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intentM, 0);
-
-                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
-                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
-
-                Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
-                        .setContentTitle(selectLang1+" -> "+selectLang2)
-                        .setSmallIcon(R.drawable.cc_noti)
-                        .setContentIntent(pi)
-                        .setStyle(new NotificationCompat.BigTextStyle()
-                                .bigText("None..."))
-                        .addAction(R.mipmap.ic_launcher, "Cancel",
-                                cPi)
+        if(setNotification == true && reciteMode == false){
+            if(Build.VERSION.SDK_INT >= 24){
+                String replyLabel = "...";
+                RemoteInput remoteInput = new RemoteInput.Builder(KEY_TEXT_REPLY)
+                        .setLabel(replyLabel)
                         .build();
-                startForeground(1, notification);
+                PendingIntent replyPendingIntent =
+                        PendingIntent.getBroadcast(getApplicationContext(),
+                                0,
+                                new Intent("site.yvo11.ctranslate.reply"),
+                                PendingIntent.FLAG_UPDATE_CURRENT);
+                NotificationCompat.Action action =
+                        new NotificationCompat.Action.Builder(R.drawable.cc_noti,
+                                "Search", replyPendingIntent)
+                                .addRemoteInput(remoteInput)
+                                .build();
 
-            }else{
+                if(Build.VERSION.SDK_INT >= 26) {
+                    NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
+                    NotificationChannel notificationChannel = new NotificationChannel("default", "C翻译", NotificationManager.IMPORTANCE_DEFAULT);
+                    notificationChannel.enableLights(false);
+                    notificationChannel.setSound(null, null);
+                    notificationChannel.setDescription("Channel description");
+                    notificationManager.createNotificationChannel(notificationChannel);
+
+                    Intent intent = new Intent("site.yvo11.ctranslate.start");
+                    PendingIntent pi = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
+
+                    Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                    PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                    Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                            .setContentTitle(selectLang1+" -> "+selectLang2)
+                            .setSmallIcon(R.drawable.cc_noti)
+                            .setContentIntent(pi)
+                            .setStyle(new NotificationCompat.BigTextStyle()
+                                    .bigText("None..."))
+                            .addAction(action)
+                            .addAction(R.drawable.ic_launcher_foreground, "Cancel",
+                                    cPi)
+                            .build();
+                    startForeground(1, notification);
+
+                }else if(Build.VERSION.SDK_INT < 26 && Build.VERSION.SDK_INT >=24){
+                    Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                    PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                    Intent intent = new Intent("site.yvo11.ctranslate.start");
+                    PendingIntent pi = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
+                    Notification notification = new NotificationCompat.Builder(getApplicationContext())
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                            .setContentTitle(selectLang1+" -> "+selectLang2)
+                            .setSmallIcon(R.drawable.cc_noti)
+                            .setContentIntent(pi)
+                            .setStyle(new NotificationCompat.BigTextStyle()
+                                    .bigText("None..."))
+                            .addAction(action)
+                            .addAction(R.drawable.ic_launcher_foreground, "Cancel",
+                                    cPi)
+                            .build();
+                    startForeground(1, notification);
+                }
+            } else {
                 Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
                 PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
 
-                Intent intentM = new Intent(getApplicationContext(), MainActivity.class);
-                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intentM, 0);
+                Intent intent = new Intent("site.yvo11.ctranslate.start");
+                PendingIntent pi = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
                 Notification notification = new NotificationCompat.Builder(getApplicationContext())
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
                         .setContentTitle(selectLang1+" -> "+selectLang2)
                         .setSmallIcon(R.drawable.cc_noti)
                         .setContentIntent(pi)
                         .setStyle(new NotificationCompat.BigTextStyle()
                                 .bigText("None..."))
-                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                        .addAction(R.drawable.ic_launcher_foreground, "Cancel",
                                 cPi)
                         .build();
                 startForeground(1, notification);
             }
+        }
+
+        if(reciteMode == true){
+            Intent nextInitIntent  = new Intent("site.yvo11.ctranslate.next");
+            sendBroadcast(nextInitIntent);
         }
 
         final ClipboardManager clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
@@ -128,7 +209,7 @@ public class ClipboardService extends Service {
             }
         });
 
-        return super.onStartCommand(intent, flags, startId);
+        return super.onStartCommand(intentt, flags, startId);
     }
 
     private static ClipboardService instance;
@@ -170,8 +251,8 @@ public class ClipboardService extends Service {
         setNotification = sharedPreferences1.getBoolean("setNotification", true);
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean setShanbay = Boolean.valueOf(prefs.getBoolean("setShanbay", false)).booleanValue();
-        if(setShanbay == true){
+        int setSource = Integer.valueOf(prefs.getString("sourceListPreference", "1")).intValue();
+        if(setSource == 2){
             word = text;
             OkHttpClient client = new OkHttpClient();
             Request request = new Request.Builder()
@@ -273,13 +354,14 @@ public class ClipboardService extends Service {
                         Log.d("uk", uk);
                         Log.d("us", us);
                         dst = "UK: " + "[" + uk + "]" +" US: " + "[" + us + "]" + '\n'
-                                + enDefinitions + '\n' + defn;
+                                + defn + '\n' + enDefinitions;
                         src = word;
                     }else{
                         src = statusCode + "";
                         dst = shanbayresult.getMsg();
                     }
                     runNotification();
+
 
                     if(src != "" && dst != "" && dst != statusCode + ""){
                         SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
@@ -383,63 +465,195 @@ public class ClipboardService extends Service {
                         if(setToast == true){
                             Toast.makeText(getApplicationContext(), dst, Toast.LENGTH_LONG).show();
                         }
-                        if(setNotification == true){
-                            if(Build.VERSION.SDK_INT >= 26) {
-                                NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
-                                NotificationChannel notificationChannel = new NotificationChannel("default", "Channel name", NotificationManager.IMPORTANCE_DEFAULT);
-                                notificationChannel.setDescription("Channel description");
-                                notificationManager.createNotificationChannel(notificationChannel);
 
-                                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
-
-                                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
-                                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
-
-                                Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
-//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
-                                        .setContentTitle(src)
-                                        .setSmallIcon(R.drawable.cc_noti)
-                                        .setContentIntent(pi)
-                                        .setStyle(new NotificationCompat.BigTextStyle()
-                                                .bigText("-> "+dst))
-                                        .addAction(R.mipmap.ic_launcher, "Cancel",
-                                                cPi)
+                        if(setNotification == true && reciteMode == false){
+                            if(Build.VERSION.SDK_INT >= 24){
+                                String replyLabel = "...";
+                                RemoteInput remoteInput = new RemoteInput.Builder(KEY_TEXT_REPLY)
+                                        .setLabel(replyLabel)
                                         .build();
-                                startForeground(1, notification);
+                                PendingIntent replyPendingIntent =
+                                        PendingIntent.getBroadcast(getApplicationContext(),
+                                                0,
+                                                new Intent("site.yvo11.ctranslate.reply"),
+                                                PendingIntent.FLAG_UPDATE_CURRENT);
+                                NotificationCompat.Action action =
+                                        new NotificationCompat.Action.Builder(R.drawable.cc_noti,
+                                                "Search", replyPendingIntent)
+                                                .addRemoteInput(remoteInput)
+                                                .build();
 
-                            }else{
+                                if(Build.VERSION.SDK_INT >= 26) {
+                                    NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
+                                    NotificationChannel notificationChannel = new NotificationChannel("default", "C翻译", NotificationManager.IMPORTANCE_DEFAULT);
+                                    notificationChannel.enableLights(false);
+                                    notificationChannel.setSound(null, null);
+                                    notificationChannel.setDescription("Channel description");
+                                    notificationManager.createNotificationChannel(notificationChannel);
+
+                                    Intent intent = new Intent("site.yvo11.ctranslate.start");
+                                    PendingIntent pi = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
+
+                                    Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                                    PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                                    Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
+                                            .setContentTitle(src)
+                                            .setSmallIcon(R.drawable.cc_noti)
+                                            .setContentIntent(pi)
+                                            .setStyle(new NotificationCompat.BigTextStyle()
+                                                    .bigText("-> "+dst))
+                                            .addAction(action)
+                                            .addAction(R.drawable.ic_launcher_foreground, "Cancel",
+                                                    cPi)
+                                            .build();
+                                    startForeground(1, notification);
+
+                                }else if(Build.VERSION.SDK_INT < 26 && Build.VERSION.SDK_INT >=24){
+                                    Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                                    PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                                    Intent intent = new Intent("site.yvo11.ctranslate.start");
+                                    PendingIntent pi = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
+                                    Notification notification = new NotificationCompat.Builder(getApplicationContext())
+                                            .setContentTitle(src)
+                                            .setSmallIcon(R.drawable.cc_noti)
+                                            .setContentIntent(pi)
+                                            .setStyle(new NotificationCompat.BigTextStyle()
+                                                    .bigText("-> "+dst))
+                                            .addAction(action)
+                                            .addAction(R.drawable.ic_launcher_foreground, "Cancel",
+                                                    cPi)
+                                            .build();
+                                    startForeground(1, notification);
+                                }
+                            } else {
                                 Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
                                 PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
 
-                                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+                                Intent intent = new Intent("site.yvo11.ctranslate.start");
+                                PendingIntent pi = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
                                 Notification notification = new NotificationCompat.Builder(getApplicationContext())
-//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
                                         .setContentTitle(src)
                                         .setSmallIcon(R.drawable.cc_noti)
                                         .setContentIntent(pi)
                                         .setStyle(new NotificationCompat.BigTextStyle()
                                                 .bigText("-> "+dst))
-                                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                        .addAction(R.drawable.ic_launcher_foreground, "Cancel",
                                                 cPi)
                                         .build();
                                 startForeground(1, notification);
                             }
-
                         }
-
                     }
                 });
             }
         }.start();
     }
+
+    class StartReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Intent intent1 = new Intent(getApplicationContext(), MainActivity.class);
+            intent1.putExtra("setStart", false);
+            intent1.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent1);
+        }
+    }
+
+    class ReplyReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            CharSequence charSequence = getMessageText(intent);
+            String text = charSequence.toString();
+            trans(text);
+        }
+    }
+
     class CancelReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             stopService(new Intent(getApplicationContext(), ClipboardService.class));
             android.os.Process.killProcess(android.os.Process.myPid());
             System.exit(0);
+        }
+    }
+
+    class NextReceiver extends BroadcastReceiver {
+        int pos = 1;
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        int MAX = Integer.valueOf(prefs.getString("ListPreference", "50")).intValue();
+        @Override
+        public void onReceive(Context context, Intent intentt) {
+            SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
+            int sum = 0;
+            if(sharedPreferences.contains("sum")){
+                sum = sharedPreferences.getInt("sum", 0);
+            }
+
+            int top = sum - MAX + 1;
+            if(top <= 0){
+                top = 1;
+            }
+            String src = sharedPreferences.getString(pos+""+"src","");
+            String dst = sharedPreferences.getString(pos+""+"dst","");
+
+            if(Build.VERSION.SDK_INT >= 26) {
+                NotificationManager notificationManager = (NotificationManager)getApplicationContext().getSystemService(NOTIFICATION_SERVICE);
+                NotificationChannel notificationChannel = new NotificationChannel("default", "Channel name", NotificationManager.IMPORTANCE_DEFAULT);
+                notificationChannel.setDescription("Channel description");
+                notificationManager.createNotificationChannel(notificationChannel);
+
+                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+
+                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                Intent nIntent = new Intent("site.yvo11.ctranslate.next");
+                PendingIntent nPi = PendingIntent.getBroadcast(getApplicationContext(), 0, nIntent, 0);
+
+                Notification notification = new NotificationCompat.Builder(getApplicationContext(), "default")
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                        .setContentTitle(src)
+                        .setSmallIcon(R.drawable.cc_noti)
+                        .setContentIntent(pi)
+                        .setStyle(new NotificationCompat.BigTextStyle()
+                                .bigText("-> "+dst))
+                        .addAction(R.mipmap.ic_launcher, "Next",
+                                nPi)
+                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                cPi)
+                        .build();
+                startForeground(1, notification);
+
+            }else{
+                Intent cIntent = new Intent("site.yvo11.ctranslate.cancel");
+                PendingIntent cPi = PendingIntent.getBroadcast(getApplicationContext(), 0, cIntent, 0);
+
+                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+
+                Intent nIntent = new Intent("site.yvo11.ctranslate.next");
+                PendingIntent nPi = PendingIntent.getBroadcast(getApplicationContext(), 0, nIntent, 0);
+                Notification notification = new NotificationCompat.Builder(getApplicationContext())
+//                                                .setContentTitle(selectLang1+" -> "+selectLang2)
+                        .setContentTitle(src)
+                        .setSmallIcon(R.drawable.cc_noti)
+                        .setContentIntent(pi)
+                        .setStyle(new NotificationCompat.BigTextStyle()
+                                .bigText("-> "+dst))
+                        .addAction(R.mipmap.ic_launcher, "Next",
+                                nPi)
+                        .addAction(R.mipmap.ic_launcher, "Cancel",
+                                cPi)
+                        .build();
+                startForeground(1, notification);
+            }
+            if(pos < sum){
+                pos++;
+            }
         }
     }
 }
